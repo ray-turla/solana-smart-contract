@@ -6,7 +6,6 @@ import {
   Connection,
   PublicKey,
   clusterApiUrl,
-  LAMPORTS_PER_SOL,
   SystemProgram,
   TransactionInstruction,
   Transaction,
@@ -15,13 +14,12 @@ import {
 import fs from 'mz/fs';
 import path from 'path';
 import * as borsh from 'borsh';
-
+import {LAMPORT} from './constants';
 
 /**
  * Connecion to the network
  */
 let connection: Connection;
-
 /**
  * Keypair associated to the fees' payer
  */
@@ -92,26 +90,35 @@ export async function establishConnection(): Promise<void> {
    version from the connection object. */
 
   //Insert the Step 1 code from the tutorial here
+
+  connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+  const version = await connection.getVersion();
+  console.log('Connection to devnet established', version);
 }
 
 /**
  * Generate an account to pay for everything
  */
 export async function establishPayer(): Promise<void> {
-  
   //Step 2: Generate a keypair - this would be an account that pays for the calls to the program
-  
-  //Insert the Step 2 code from the tutorial here
-  
-  //Step 3: Requesting an airdrop
+  payer = Keypair.generate(); // pay also for gas fees
 
-   //Insert the Step 3 code from the tutorial here
-   
+  console.log('Public Key of Payer is:', payer.publicKey);
+  //Insert the Step 2 code from the tutorial here
+
+  const airdropAmount = LAMPORT(2);
+  //Step 3: Requesting an airdrop
+  const sign = await connection.requestAirdrop(payer.publicKey, airdropAmount);
+
+  await connection.confirmTransaction(sign);
+
+  //Insert the Step 3 code from the tutorial here
+
   console.log(
     'Using account',
     payer.publicKey.toBase58(),
     'containing',
-    2* LAMPORTS_PER_SOL,
+    airdropAmount,
     'SOL to pay for fees',
   );
 }
@@ -184,7 +191,7 @@ export async function checkProgram(): Promise<void> {
 /**
  * Create a Keypair from a secret key stored in file as bytes' array
  */
- export async function createKeypairFromFile(
+export async function createKeypairFromFile(
   filePath: string,
 ): Promise<Keypair> {
   const secretKeyString = await fs.readFile(filePath, {encoding: 'utf8'});
@@ -196,18 +203,24 @@ export async function checkProgram(): Promise<void> {
  * Say hello
  */
 export async function sayHello(): Promise<void> {
-
   //Create a Hello transaction to the deployed contract
   console.log('Saying hello to', greetedPubkey.toBase58());
-  
   // STEP 4: Create an instruction to be sent to the program
-  
+
   //Insert the Step 4 code from the tutorial here
+  const instruction = new TransactionInstruction({
+    keys: [{pubkey: greetedPubkey, isSigner: false, isWritable: true}],
+    programId,
+    data: Buffer.alloc(0),
+  });
 
   //STEP 5: Create a transaction to be sent to the blockchain containing the instruction
-  
+  await sendAndConfirmTransaction(
+    connection,
+    new Transaction().add(instruction),
+    [payer],
+  );
   //Insert the Step 5 code from the tutorial here
-
 }
 
 /**
